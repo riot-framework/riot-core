@@ -1,4 +1,4 @@
-package riot;
+package riot.messages;
 
 public enum Ack {
 	INSTANCE;
