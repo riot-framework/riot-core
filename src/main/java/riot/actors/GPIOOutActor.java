@@ -10,21 +10,17 @@ import com.pi4j.io.gpio.GpioPinPwmOutput;
 import akka.actor.AbstractActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import akka.japi.pf.ReceiveBuilder;
 import riot.GPIO;
-import riot.messages.Ack;
-import riot.messages.Init;
-import riot.messages.Shutdown;
 
 public class GPIOOutActor extends AbstractActor {
 	private static final int PWM_RANGE = 1024;
-	
+
 	final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
 	private static final GpioController gpio = GpioFactory.getInstance();
-	
+
 	private final GPIO.Out conf;
-	
+
 	private GpioPinOutput output;
 	private GpioPinDigitalOutput outputDigital;
 	private GpioPinAnalogOutput outputAnalog;
@@ -36,30 +32,25 @@ public class GPIOOutActor extends AbstractActor {
 
 	@Override
 	public Receive createReceive() {
-		ReceiveBuilder builder = super.receiveBuilder() //
-				.match(Init.class, this::onInitialize) //
-				.match(Shutdown.class, this::onShutdown) //
-				.match(Ack.class, this::onAck);
-
 		switch (conf.getPinMode()) {
 		case DIGITAL_OUTPUT:
-			return builder.match(GPIO.State.class, this::onGPIOState) //
-					.build();
+			return super.receiveBuilder() //
+					.match(GPIO.State.class, this::onGPIOState).build();
 		case ANALOG_OUTPUT:
+			return super.receiveBuilder() //
+					.match(Double.class, this::onValue).build();
 		case PWM_OUTPUT:
-			return builder.match(Double.class, this::onValue) //
+			return super.receiveBuilder() //
+					.match(Double.class, this::onValue) //
+					.match(Integer.class, this::onValue) //
 					.build();
 		default:
 			throw new IllegalArgumentException("GPIOOutActor cannot be created for " + conf.getPinMode());
 		}
 	}
 
-	public void onInitialize(Init msg) {
-		ensurePinProvisioned();
-		sender().tell(Ack.INSTANCE, self());
-	}
-
-	private void ensurePinProvisioned() {
+	@Override
+	public void preStart() {
 		if (output == null) {
 			switch (conf.getPinMode()) {
 			case DIGITAL_OUTPUT:
@@ -94,6 +85,52 @@ public class GPIOOutActor extends AbstractActor {
 		}
 	}
 
+	@Override
+	public void postStop() {
+		if (output != null) {
+			output.unexport();
+		}
+	}
+
+	public void onGPIOState(GPIO.State state) {
+		switch (state) {
+		case HIGH:
+			outputDigital.high();
+			sender().tell(state, self());
+			break;
+		case LOW:
+			outputDigital.low();
+			sender().tell(state, self());
+			break;
+		case TOGGLE:
+			outputDigital.toggle();
+			if (outputDigital.isHigh()) {
+				sender().tell(GPIO.State.HIGH, self());
+			}
+			if (outputDigital.isLow()) {
+				sender().tell(GPIO.State.LOW, self());
+			}
+			break;
+		}
+	}
+
+	public void onValue(Double value) {
+		if (outputAnalog != null) {
+			outputAnalog.setValue(value);
+			sender().tell(outputAnalog.getValue(), self());
+		} else if (outputPwm != null) {
+			outputPwm.setPwm(toPwmSteps(value));
+			sender().tell(outputPwm.getPwm(), self());
+		}
+	}
+
+	public void onValue(Integer value) {
+		if (outputPwm != null) {
+			outputPwm.setPwm(value);
+			sender().tell(outputPwm.getPwm(), self());
+		}
+	}
+
 	private static final int toPwmSteps(double value) {
 		final long steps = Math.round(value * PWM_RANGE);
 		if (steps > PWM_RANGE) {
@@ -103,43 +140,5 @@ public class GPIOOutActor extends AbstractActor {
 			return 0;
 		}
 		return (int) steps;
-	}
-
-	public void onShutdown(Shutdown msg) {
-		if (output != null) {
-			output.unexport();
-		}
-		sender().tell(Ack.INSTANCE, self());
-	}
-
-	public void onAck(Ack msg) {
-		log.debug("Received Ack");
-	}
-
-	public void onGPIOState(GPIO.State state) {
-		switch (state) {
-		case ON:
-			outputDigital.high();
-			break;
-		case OFF:
-			outputDigital.low();
-			break;
-		case TOGGLE:
-			outputDigital.toggle();
-			break;
-		}
-
-		sender().tell(Ack.INSTANCE, self());
-	}
-
-	public void onValue(Double value) {
-		if (output == null) {
-
-		}
-		if (outputAnalog != null) {
-			outputAnalog.setValue(value);
-		} else if (outputPwm != null) {
-			outputPwm.setPwm(toPwmSteps(value));
-		}
 	}
 }

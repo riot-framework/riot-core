@@ -1,5 +1,7 @@
 package riot;
 
+import java.util.concurrent.TimeUnit;
+
 import com.pi4j.io.gpio.Pin;
 import com.pi4j.io.gpio.PinMode;
 import com.pi4j.io.gpio.PinPullResistance;
@@ -7,22 +9,28 @@ import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
 
 import akka.NotUsed;
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
+import akka.stream.javadsl.Flow;
+import akka.stream.javadsl.GraphDSL;
 import akka.stream.javadsl.Sink;
+import akka.util.Timeout;
 import riot.actors.GPIOOutActor;
-import riot.messages.Ack;
-import riot.messages.Init;
-import riot.messages.Shutdown;
 
+/**
+ * The configuration of a GPIO pin, with utility methods to create sources,
+ * sinks, flows, or just akka actor props.
+ *
+ * @param <T>
+ *            the type of GPIO configuration, IN or OUT.
+ */
 public abstract class GPIO<T extends GPIO<T>> {
 	/**
 	 * Models the state of a digital GPIO pin: ON (high), OFF (low), or TOGGLE (will
 	 * become ON if it was OFF, and vice-versa).
 	 */
 	public enum State {
-		ON, OFF, TOGGLE
+		HIGH, LOW, TOGGLE
 	}
 
 	/*
@@ -40,12 +48,13 @@ public abstract class GPIO<T extends GPIO<T>> {
 		return pin;
 	}
 
-	protected abstract Props props();
+	public abstract Props asProps();
 
-	protected abstract T analog();
+	public abstract T analog();
 
-	protected abstract T digital();
+	public abstract T digital();
 
+	// This is only used internally to make chaining work
 	protected abstract T getThis();
 
 	public PinMode getPinMode() {
@@ -101,13 +110,13 @@ public abstract class GPIO<T extends GPIO<T>> {
 		}
 
 		@Override
-		protected Out analog() {
+		public Out analog() {
 			super.pinMode = PinMode.ANALOG_OUTPUT;
 			return this;
 		}
 
 		@Override
-		protected Out digital() {
+		public Out digital() {
 			super.pinMode = PinMode.DIGITAL_OUTPUT;
 			return this;
 		}
@@ -168,13 +177,19 @@ public abstract class GPIO<T extends GPIO<T>> {
 		}
 
 		public Sink<State, NotUsed> asSink(ActorSystem system) {
-			ActorRef actor = system.actorOf(props());
-			return Sink.actorRefWithAck(actor, new Init(), Ack.INSTANCE, new Shutdown(),
-					ex -> new RuntimeException(ex));
+			return Flow.of(State.class).ask(system.actorOf(asProps()), State.class, Timeout.apply(1, TimeUnit.SECONDS))
+					.to(Sink.ignore());
+		}
+
+		public Flow<State, State, NotUsed> asFlow(ActorSystem system) {
+			return Flow.fromGraph(GraphDSL.create(b -> {
+				return b.add(Flow.of(State.class).ask(system.actorOf(asProps()), State.class,
+						Timeout.apply(1, TimeUnit.SECONDS)));
+			}));
 		}
 
 		@Override
-		protected Props props() {
+		public Props asProps() {
 			return Props.create(GPIOOutActor.class, this);
 		}
 
