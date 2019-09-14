@@ -9,7 +9,6 @@ import com.pi4j.io.gpio.Pin;
 import com.pi4j.io.gpio.PinMode;
 import com.pi4j.io.gpio.PinPullResistance;
 import com.pi4j.io.gpio.PinState;
-import com.pi4j.io.gpio.RaspiPin;
 
 import akka.NotUsed;
 import akka.actor.ActorRef;
@@ -104,7 +103,7 @@ public abstract class GPIO<T extends GPIO<T>> {
 	 * Output Pin
 	 */
 	public static Out out(int pin) {
-		return new Out(RaspiPin.getPinByAddress(pin));
+		return new Out(Utils.asPin(pin));
 	}
 
 	public static Out out(Pin pin) {
@@ -214,7 +213,7 @@ public abstract class GPIO<T extends GPIO<T>> {
 	 * Input Pin
 	 */
 	public static In in(int pin) {
-		return new In(RaspiPin.getPinByAddress(pin));
+		return new In(Utils.asPin(pin));
 	}
 
 	public static In in(Pin pin) {
@@ -251,7 +250,7 @@ public abstract class GPIO<T extends GPIO<T>> {
 		public Set<ActorRef> getListeners() {
 			return listeners;
 		}
-		
+
 		public boolean hasListener() {
 			return listeners.size() > 0;
 		}
@@ -270,7 +269,8 @@ public abstract class GPIO<T extends GPIO<T>> {
 
 		public Source<State, ActorRef> asSource(ActorSystem system, Materializer mat, int bufferSize,
 				OverflowStrategy overflowStrategy) {
-			final Source<State, ActorRef> source = Source.actorRef(bufferSize, overflowStrategy).collectType(State.class);
+			final Source<State, ActorRef> source = Source.actorRef(bufferSize, overflowStrategy)
+					.collectType(State.class);
 			final ActorRef actorRef = source.preMaterialize(mat).first();
 			system.actorOf(addListeners(actorRef).asProps());
 			return source;
