@@ -82,6 +82,10 @@ public class GPIOOutActor extends AbstractActor {
 			if (conf.getShutdownState() != null) {
 				output.setShutdownOptions(true, conf.getShutdownState());
 			}
+			if (conf.getPullResistance() != null) {
+				output.setPullResistance(conf.getPullResistance());
+			}
+			
 		}
 	}
 

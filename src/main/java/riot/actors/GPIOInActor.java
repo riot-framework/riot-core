@@ -59,6 +59,9 @@ public class GPIOInActor extends AbstractActor implements GpioPinListenerAnalog,
 				throw new IllegalArgumentException("GPIOInActor cannot be initialized for " + conf.getPinMode());
 			}
 
+			if (conf.getPullResistance() != null) {
+				input.setPullResistance(conf.getPullResistance());
+			}
 			if (conf.hasListener()) {
 				this.listeners = Collections.unmodifiableSet(conf.getListeners());
 				input.addListener(this);
@@ -113,7 +116,7 @@ public class GPIOInActor extends AbstractActor implements GpioPinListenerAnalog,
 
 	private void notifyListeners(Object msg) {
 		for (ActorRef actorRef : listeners) {
-			actorRef.tell(inputAnalog.getValue(), self());
+			actorRef.tell(msg, self());
 		}
 	}
 }
