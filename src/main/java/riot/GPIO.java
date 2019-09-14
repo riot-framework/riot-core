@@ -1,5 +1,8 @@
 package riot;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.pi4j.io.gpio.Pin;
@@ -9,12 +12,17 @@ import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
 
 import akka.NotUsed;
+import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
+import akka.stream.Materializer;
+import akka.stream.OverflowStrategy;
 import akka.stream.javadsl.Flow;
 import akka.stream.javadsl.GraphDSL;
 import akka.stream.javadsl.Sink;
+import akka.stream.javadsl.Source;
 import akka.util.Timeout;
+import riot.actors.GPIOInActor;
 import riot.actors.GPIOOutActor;
 
 /**
@@ -25,12 +33,20 @@ import riot.actors.GPIOOutActor;
  *            the type of GPIO configuration, IN or OUT.
  */
 public abstract class GPIO<T extends GPIO<T>> {
+	private static final Timeout ASK_TIMEOUT = Timeout.apply(1, TimeUnit.SECONDS);
+
 	/**
 	 * Models the state of a digital GPIO pin: ON (high), OFF (low), or TOGGLE (will
 	 * become ON if it was OFF, and vice-versa).
 	 */
 	public enum State {
 		HIGH, LOW, TOGGLE
+	}
+
+	/**
+	 * "Get" command for input GPIO
+	 */
+	public static class Get {
 	}
 
 	/*
@@ -85,7 +101,7 @@ public abstract class GPIO<T extends GPIO<T>> {
 	}
 
 	/*
-	 * Streaming
+	 * Output Pin
 	 */
 	public static Out out(int pin) {
 		return new Out(RaspiPin.getPinByAddress(pin));
@@ -183,8 +199,7 @@ public abstract class GPIO<T extends GPIO<T>> {
 
 		public Flow<State, State, NotUsed> asFlow(ActorSystem system) {
 			return Flow.fromGraph(GraphDSL.create(b -> {
-				return b.add(Flow.of(State.class).ask(system.actorOf(asProps()), State.class,
-						Timeout.apply(1, TimeUnit.SECONDS)));
+				return b.add(Flow.of(State.class).ask(system.actorOf(asProps()), State.class, ASK_TIMEOUT));
 			}));
 		}
 
@@ -195,6 +210,83 @@ public abstract class GPIO<T extends GPIO<T>> {
 
 	}
 
-	// TODO: Source
+	/*
+	 * Input Pin
+	 */
+	public static In in(int pin) {
+		return new In(RaspiPin.getPinByAddress(pin));
+	}
+
+	public static In in(Pin pin) {
+		return new In(pin);
+	}
+
+	public static class In extends GPIO<In> {
+
+		private Set<ActorRef> listeners = new HashSet<ActorRef>();
+
+		private In(Pin pin) {
+			super.pin = pin;
+			super.pinMode = PinMode.DIGITAL_INPUT;
+			pin.getName();
+		}
+
+		@Override
+		public In analog() {
+			super.pinMode = PinMode.ANALOG_INPUT;
+			return this;
+		}
+
+		@Override
+		public In digital() {
+			super.pinMode = PinMode.DIGITAL_INPUT;
+			return this;
+		}
+
+		public In addListeners(ActorRef... listeners) {
+			this.listeners.addAll(Arrays.asList(listeners));
+			return this;
+		}
+
+		public Set<ActorRef> getListeners() {
+			return listeners;
+		}
+		
+		public boolean hasListener() {
+			return listeners.size() > 0;
+		}
+
+		/**
+		 * This is used to allow the superclass to do chaining properly
+		 */
+		@Override
+		protected In getThis() {
+			return this;
+		}
+
+		public Source<State, ActorRef> asSource(ActorSystem system, Materializer mat) {
+			return asSource(system, mat, 1, OverflowStrategy.dropTail());
+		}
+
+		public Source<State, ActorRef> asSource(ActorSystem system, Materializer mat, int bufferSize,
+				OverflowStrategy overflowStrategy) {
+			final Source<State, ActorRef> source = Source.actorRef(bufferSize, overflowStrategy).collectType(State.class);
+			final ActorRef actorRef = source.preMaterialize(mat).first();
+			system.actorOf(addListeners(actorRef).asProps());
+			return source;
+		}
+
+		public Flow<State, State, NotUsed> asFlow(ActorSystem system) {
+			return Flow.fromGraph(GraphDSL.create(b -> {
+				return b.add(Flow.of(State.class).ask(system.actorOf(asProps()), State.class, ASK_TIMEOUT));
+			}));
+		}
+
+		@Override
+		public Props asProps() {
+			return Props.create(GPIOInActor.class, this);
+		}
+
+	}
 
 }
