@@ -2,6 +2,7 @@ package riot;
 
 import com.pi4j.io.gpio.BananaPiPin;
 import com.pi4j.io.gpio.BpiPin;
+import com.pi4j.io.gpio.GpioFactory;
 import com.pi4j.io.gpio.NanoPiPin;
 import com.pi4j.io.gpio.OdroidC1Pin;
 import com.pi4j.io.gpio.OrangePiPin;
@@ -15,6 +16,7 @@ import com.pi4j.system.SystemInfo;
  *
  */
 class Utils {
+	private static boolean shutdownThreadRegistered = false;
 
 	private Utils() {
 		// No instantiation necessary.
@@ -28,7 +30,9 @@ class Utils {
 	 *            the pin number in the board's own numbering (i.e. NOT in
 	 *            Broadcom's numbering).
 	 * @return the corresponding Pin object
-	 * @throws a RuntimeException if mapping fails (pin or board type is unknown, or board type could not be identified).
+	 * @throws a
+	 *             RuntimeException if mapping fails (pin or board type is unknown,
+	 *             or board type could not be identified).
 	 */
 	static final Pin asPin(int address) {
 		try {
@@ -97,4 +101,22 @@ class Utils {
 		}
 	}
 
+	/**
+	 * Registers a shutdown hook that will shut down the GPIO controller when the VM
+	 * stops.
+	 */
+	static final synchronized void registerShutdownHook() {
+		if (shutdownThreadRegistered) {
+			return;
+		}
+
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			@Override
+			public void run() {
+				GpioFactory.getInstance().shutdown();
+			}
+		});
+
+		shutdownThreadRegistered = true;
+	}
 }
