@@ -47,16 +47,16 @@ public class GPIOInActor extends AbstractActor implements GpioPinListenerAnalog,
 	public void preStart() {
 		if (input == null) {
 			switch (conf.getPinMode()) {
-			case DIGITAL_OUTPUT:
+			case DIGITAL_INPUT:
 				inputDigital = gpio.provisionDigitalInputPin(conf.getPin(), conf.getName());
 				input = inputDigital;
 				break;
-			case ANALOG_OUTPUT:
+			case ANALOG_INPUT:
 				inputAnalog = gpio.provisionAnalogInputPin(conf.getPin(), conf.getName());
 				input = inputAnalog;
 				break;
 			default:
-				throw new IllegalArgumentException("GPIOOutActor cannot be initialized for " + conf.getPinMode());
+				throw new IllegalArgumentException("GPIOInActor cannot be initialized for " + conf.getPinMode());
 			}
 
 			if (conf.hasListener()) {
