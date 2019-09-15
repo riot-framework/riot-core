@@ -14,6 +14,7 @@ import akka.NotUsed;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
+import akka.japi.Pair;
 import akka.stream.Materializer;
 import akka.stream.OverflowStrategy;
 import akka.stream.javadsl.Flow;
@@ -263,17 +264,17 @@ public abstract class GPIO<T extends GPIO<T>> {
 			return this;
 		}
 
-		public Source<State, ActorRef> asSource(ActorSystem system, Materializer mat) {
+		public Source<State, NotUsed> asSource(ActorSystem system, Materializer mat) {
 			return asSource(system, mat, 1, OverflowStrategy.dropTail());
 		}
 
-		public Source<State, ActorRef> asSource(ActorSystem system, Materializer mat, int bufferSize,
+		public Source<State, NotUsed> asSource(ActorSystem system, Materializer mat, int bufferSize,
 				OverflowStrategy overflowStrategy) {
 			final Source<State, ActorRef> source = Source.actorRef(bufferSize, overflowStrategy)
 					.collectType(State.class);
-			final ActorRef actorRef = source.preMaterialize(mat).first();
-			system.actorOf(addListeners(actorRef).asProps());
-			return source;
+			Pair<ActorRef, Source<State, NotUsed>> preMat = source.preMaterialize(mat);
+			system.actorOf(addListeners(preMat.first()).asProps());
+			return preMat.second();
 		}
 
 		public Flow<State, State, NotUsed> asFlow(ActorSystem system) {
