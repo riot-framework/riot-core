@@ -278,9 +278,7 @@ public abstract class GPIO<T extends GPIO<T>> {
 		}
 
 		public Flow<State, State, NotUsed> asFlow(ActorSystem system) {
-			return Flow.fromGraph(GraphDSL.create(b -> {
-				return b.add(Flow.of(State.class).ask(system.actorOf(asProps()), State.class, ASK_TIMEOUT));
-			}));
+			return Flow.of(State.class).ask(system.actorOf(asProps()), State.class, ASK_TIMEOUT);
 		}
 
 		@Override

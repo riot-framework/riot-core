@@ -6,6 +6,7 @@ import akka.NotUsed;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.stream.javadsl.Flow;
+import akka.stream.javadsl.GraphDSL;
 import akka.stream.javadsl.Sink;
 import akka.util.Timeout;
 import riot.actors.I2CActor;
@@ -34,7 +35,7 @@ public class I2C<P extends I2CProtocol<I, O>, I, O> {
 		this.proto = deviceProtocol;
 		this.protoDescriptor = deviceProtocol.getDescriptor();
 	}
-	
+
 	public static I2C<RawI2CProtocol, RawI2CProtocol.Command, RawI2CProtocol.Result> rawDevice() {
 		return new I2C<RawI2CProtocol, RawI2CProtocol.Command, RawI2CProtocol.Result>(new RawI2CProtocol());
 	}
@@ -84,8 +85,10 @@ public class I2C<P extends I2CProtocol<I, O>, I, O> {
 	}
 
 	public Flow<I, O, NotUsed> asFlow(ActorSystem system) {
-		return Flow.of(protoDescriptor.getInputMessageType()).ask(system.actorOf(asProps()),
-				protoDescriptor.getOutputMessageType(), protoDescriptor.getTimeout());
+		return Flow.fromGraph(GraphDSL.create(b -> {
+			return b.add(Flow.of(protoDescriptor.getInputMessageType()).ask(system.actorOf(asProps()),
+					protoDescriptor.getOutputMessageType(), protoDescriptor.getTimeout()));
+		}));
 	}
 
 	public Props asProps() {
