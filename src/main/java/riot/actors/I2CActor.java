@@ -35,6 +35,7 @@ public class I2CActor<P extends I2CProtocol<I, O>, I, O> extends AbstractActor {
 	public void preStart() throws UnsupportedBusNumberException, IOException {
 		final I2CBus bus = I2CFactory.getInstance(conf.getBusNumber());
 		dev = bus.getDevice(conf.getAddress());
+		proto = conf.getProtocol();
 		proto.init(dev);
 	}
 
