@@ -74,7 +74,7 @@ public class RawI2CProtocol implements I2CProtocol<Command, Result> {
 			dev.write(message.address, message.payload);
 			return new Result();
 		default:
-			throw new AssertionError(); // Unreacheable!
+			throw new AssertionError(); // Unreachable!
 		}
 	}
 

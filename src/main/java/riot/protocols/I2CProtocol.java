@@ -4,9 +4,7 @@ import java.io.IOException;
 
 import com.pi4j.io.i2c.I2CDevice;
 
-public interface I2CProtocol<I, O> {
-
-	ProtocolDescriptor<I, O> getDescriptor();
+public interface I2CProtocol<I, O> extends Protocol<I, O> {
 
 	void init(I2CDevice dev) throws IOException;
 
