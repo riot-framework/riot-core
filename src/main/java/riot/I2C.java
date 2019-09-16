@@ -9,9 +9,9 @@ import akka.stream.javadsl.Flow;
 import akka.stream.javadsl.Sink;
 import akka.util.Timeout;
 import riot.actors.I2CActor;
-import riot.protocols.Protocol;
+import riot.protocols.I2CProtocol;
 import riot.protocols.ProtocolDescriptor;
-import riot.protocols.Raw;
+import riot.protocols.RawI2CProtocol;
 
 /**
  * The configuration of a raw I2C device. This can be used directly, or
@@ -20,7 +20,7 @@ import riot.protocols.Raw;
  * @param <I>
  * 
  */
-public class I2C<P extends Protocol<I, O>, I, O> {
+public class I2C<P extends I2CProtocol<I, O>, I, O> {
 
 	/*
 	 * Settings
@@ -35,16 +35,16 @@ public class I2C<P extends Protocol<I, O>, I, O> {
 		this.protoDescriptor = deviceProtocol.getDescriptor();
 	}
 	
-	public static I2C<Raw, Raw.Command, Raw.Result> rawDevice() {
-		return new I2C<Raw, Raw.Command, Raw.Result>(new Raw());
+	public static I2C<RawI2CProtocol, RawI2CProtocol.Command, RawI2CProtocol.Result> rawDevice() {
+		return new I2C<RawI2CProtocol, RawI2CProtocol.Command, RawI2CProtocol.Result>(new RawI2CProtocol());
 	}
 
-	public static <P extends Protocol<I, O>, I, O> I2C<P, I, O> device(Class<P> deviceProtocol)
+	public static <P extends I2CProtocol<I, O>, I, O> I2C<P, I, O> device(Class<P> deviceProtocol)
 			throws IllegalAccessException, InstantiationException {
 		return new I2C<P, I, O>(deviceProtocol.newInstance());
 	}
 
-	public static <P extends Protocol<I, O>, I, O> I2C<P, I, O> device(P deviceProtocol) {
+	public static <P extends I2CProtocol<I, O>, I, O> I2C<P, I, O> device(P deviceProtocol) {
 		return new I2C<P, I, O>(deviceProtocol);
 	}
 
@@ -78,10 +78,6 @@ public class I2C<P extends Protocol<I, O>, I, O> {
 	 * Streams and actors
 	 */
 
-	protected Timeout getTimeout() {
-		return Timeout.apply(1, TimeUnit.SECONDS);
-	}
-
 	public Sink<I, NotUsed> asSink(ActorSystem system) {
 		return Flow.of(protoDescriptor.getInputMessageType()).ask(system.actorOf(asProps()),
 				protoDescriptor.getOutputMessageType(), Timeout.apply(1, TimeUnit.SECONDS)).to(Sink.ignore());
@@ -89,7 +85,7 @@ public class I2C<P extends Protocol<I, O>, I, O> {
 
 	public Flow<I, O, NotUsed> asFlow(ActorSystem system) {
 		return Flow.of(protoDescriptor.getInputMessageType()).ask(system.actorOf(asProps()),
-				protoDescriptor.getOutputMessageType(), getTimeout());
+				protoDescriptor.getOutputMessageType(), protoDescriptor.getTimeout());
 	}
 
 	public Props asProps() {

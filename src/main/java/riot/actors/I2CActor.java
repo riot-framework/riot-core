@@ -11,13 +11,13 @@ import akka.actor.AbstractActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import riot.I2C;
-import riot.protocols.Protocol;
+import riot.protocols.I2CProtocol;
 
-public class I2CActor<P extends Protocol<I, O>, I, O> extends AbstractActor {
+public class I2CActor<P extends I2CProtocol<I, O>, I, O> extends AbstractActor {
 	final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
 	private I2CDevice dev;
-	private Protocol<I, O> proto;
+	private I2CProtocol<I, O> proto;
 
 	private final I2C<P, I, O> conf;
 

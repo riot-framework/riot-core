@@ -6,10 +6,10 @@ import java.io.InputStream;
 
 import com.pi4j.io.i2c.I2CDevice;
 
-import riot.protocols.Raw.Command;
-import riot.protocols.Raw.Result;
+import riot.protocols.RawI2CProtocol.Command;
+import riot.protocols.RawI2CProtocol.Result;
 
-public class Raw implements Protocol<Command, Result> {
+public class RawI2CProtocol implements I2CProtocol<Command, Result> {
 
 	public static class Command {
 		private enum CommandType {
