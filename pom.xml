@@ -42,6 +42,11 @@
 		<!-- Akka -->
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-slf4j_2.12</artifactId>
+			<version>2.5.25</version>
+		</dependency>
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-stream_2.12</artifactId>
 			<version>2.5.25</version>
 		</dependency>
