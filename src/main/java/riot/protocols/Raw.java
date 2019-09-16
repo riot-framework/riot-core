@@ -1,20 +1,31 @@
 package riot.protocols;
 
-public class Raw implements Protocol<Raw> {
+import riot.protocols.Raw.RawOp;
+import riot.protocols.Raw.RawOp.Result;
 
-	public interface RawCommand extends Protocol.Command<Raw> {
+public class Raw implements Protocol<RawOp, RawOp.Result> {
+
+	public interface RawOp {
+		public interface Result {
+		}
 	}
 
-	public static class Read implements RawCommand {
+	public static class Read implements RawOp {
 
 	}
 
-	public static class Write implements RawCommand {
+	public static class Write implements RawOp {
 
 	}
 
 	@Override
-	public Class<RawCommand> getCommandClass() {
-		return RawCommand.class;
+	public Class<RawOp> getInputMessageClass() {
+		return RawOp.class;
 	}
+
+	@Override
+	public Class<Result> getOutputMessageClass() {
+		return RawOp.Result.class;
+	}
+
 }

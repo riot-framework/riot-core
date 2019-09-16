@@ -1,14 +1,9 @@
 package riot.protocols;
 
-public interface Protocol<P extends Protocol<P>> {
-	
-	public interface Command<P extends Protocol<P>> {
-		
-	}
-	
-	public interface Responce<C extends Command<P>, P extends Protocol<P>> {
-		
-	}
-	
-	public Class<? extends Command<P>> getCommandClass();
+public interface Protocol<I, O> {
+
+	public Class<I> getInputMessageClass();
+
+	public Class<O> getOutputMessageClass();
+
 }
