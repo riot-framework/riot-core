@@ -54,6 +54,78 @@ Props gpio7Props = GPIO.in(7). notifyActor(myOtherActor).asProps();
 system.actorOf(gpio7Props);
 ```
 
+## I2C
+
+RIoT provides actors built on top of [Pi4J]'s capabilities which allow access to I2C devices. 
+
+To communicate with an I2C device, RIoT will need you to specify which **I2C bus** to use, which **address** the device uses on that bus, and what the **protocol** between the Raspberry Pi and the I2C device is:
+
+- The **bus number** used by the Paspberry Pi is typically **1**. Other devices may have more busses, typically numbered starting with 0.
+- I2C devices normally have one **preset address**, or will allow you to switch between a few preset addresses by setting some of its pins high or low (to do this, connect them to GPIO ports, and set these high or low).
+- The protocol is either **raw** if the RIoT application wishes to directly read and write bytes to rthe device, or special class than encapsulates a particular protocol (more on these later).
+
+### 'Raw' access to the I2C bus
+
+To access an I2C bus directly, use I2C's `rawDevice()` method, specify the bus and address, and finish with `asFlow` (for an Akka Streaming component) or `asProps` (to use a regular Akka Actor):
+
+```java
+Props props = I2C.rawDevice().onBus(1).at(0x23).asProps();
+ActorRef rawDevice = system.actorOf(props);
+rawDevice.tell(RawI2CProtocol.Command.write(0x14, (byte) 0x86), self());
+```
+
+The underlying actor will accept 2 commands: `RawI2CProtocol.Command.write(...)` and `RawI2CProtocol.Command.read(...)`. It will reply with a `RawI2CProtocol.Result` message, which will be empty for a write operation, or will contain the result of the Read operation.
+
+The actor will reply to the sender of a `RawI2CProtocol.Command` with the `RawI2CProtocol.Result`. Similarly, a `Flow` component will recieve `RawI2CProtocol.Command` messages, and will emit `RawI2CProtocol.Result` messages in return.
+
+### Accessing an I2C device
+
+In RIoT, a 'protocol class' encapsulates the specific protocol for a device, defining the commands that can be issued to it, and describing how these commands are implemented (by reading and writing through the bus to the device). 
+
+On the caller side, this class need only be instantiated (possibly passing some additional settings specific to the device) and passed to the I2C object through the `device(...)` method. Typically, this class will also define constants containing the **default addresses** the device uses, and the **commands it will accept** from the caller:
+
+```java
+BMA280 bma280config = new BMA280();
+
+Props props = I2C.device(bma280config)
+                 .onBus(1)
+                 .at(BMA280Constants.DEFAULT_ADDRESS)
+                 .asProps();
+           
+
+ActorRef bma280 = system.actorOf(props);
+bma280.tell(BMA280.Command.SELFTEST, self());
+
+```
+The Actor will respond to a Command object sent by the caller with a Response. The format of both Command and Response will typically be defined within the Protocol class.
+
+Similarly, Akka Streams components can be built using the `asFlow` method. The `Flow` component will accept the Commands messages defined in the protocol class, and emit a Response message in return:
+
+```java
+// Configure a BMA280 device 
+BMA280 bma280config = new BMA280( 
+		BMA280Constants.AccelerometerScale.AFS_2G, 
+		BMA280Constants.Bandwidth.BW_500Hz, 
+		BMA280Constants.PowerMode.normal_Mode, 
+		BMA280Constants.SleepDuration.sleep100ms);
+
+Flow<BMA280.Command, BMA280.Results, NotUsed> bma280 = 
+     I2C.device(bma280config)
+        .onBus(1)
+		.at(BMA280Constants.DEFAULT_ADDRESS)
+		.asFlow(system);
+
+// Send a READ command every 500 millis...
+Source<BMA280.Command, ?> timerSource = Source.tick(Duration.ZERO, Duration.ofSeconds(1), BMA280.Command.READ);
+
+// ...then print out the measurement to the console
+timerSource.via(bma280).to(logSink).run(mat);
+```
+
+### Implementing an I2C protocol
+
+**--CHECK BACK LATER--**
+
 
 [sbt]: https://www.scala-sbt.org/1.x/docs/Setup.html
 [streams.g8]: https://github.com/riot-framework/streams.g8
