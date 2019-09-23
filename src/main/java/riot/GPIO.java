@@ -32,14 +32,17 @@ import riot.actors.GPIOOutActor;
  * Actor. Start by specifying the pin type and number by calling one of the In
  * or Out methods, then configure the pin, then create an Akka Streams or Props
  * object, e.g.: <br>
- * <pre><br>
+ * 
+ * <pre>
+ * <br>
  * ActorSystem system = ActorSystem.create("blinkenlights"); <br>
  * Materializer mat = ActorMaterializer.create(system);<br>
  * Flow&lt;State, State, NotUsed&gt; gpio7 =
  * <b>GPIO.out(7).initiallyLow().shuttingDownLow().asFlow(system);</b><br>
  * Source&lt;GPIO.State, ?&gt; timerSource = Source.tick(Duration.ZERO,
  * Duration.ofMillis(500), <b>GPIO.State.TOGGLE</b>);<br>
- * timerSource.via(gpio7).run(mat); </pre>
+ * timerSource.via(gpio7).run(mat);
+ * </pre>
  *
  * @param <T>
  *            the type of GPIO configuration, IN or OUT.
@@ -227,13 +230,14 @@ public abstract class GPIO<T extends GPIO<T>> {
 		 * 
 		 * @return this GPIO Builder instance (for chaining).
 		 */
-		protected Out pwm() {
+		public Out pwm() {
 			super.pinMode = PinMode.PWM_OUTPUT;
 			return this;
 		}
 
 		/**
-		 * The constructed GPIO pin will be a Tone output pin.
+		 * The constructed GPIO pin will be a Tone output pin. (not fully implemented
+		 * yet).
 		 * 
 		 * @return this GPIO Builder instance (for chaining).
 		 */
@@ -345,7 +349,7 @@ public abstract class GPIO<T extends GPIO<T>> {
 		 */
 		public Sink<State, NotUsed> asSink(ActorSystem system) {
 			return Flow.of(State.class).ask(system.actorOf(asProps()), State.class, Timeout.apply(1, TimeUnit.SECONDS))
-					.to(Sink.ignore());
+			        .to(Sink.ignore());
 		}
 
 		/**
@@ -468,11 +472,12 @@ public abstract class GPIO<T extends GPIO<T>> {
 		 * GPIO.State message for digital pins, an Integer message for PWM pins, and a
 		 * Double message for analog pins.
 		 * 
-		 * @param listeners the ActorRef of Actors to be notified
+		 * @param listeners
+		 *            the ActorRef of Actors to be notified
 		 * 
 		 * @return this GPIO Builder instance (for chaining).
 		 */
-		public In addListeners(ActorRef... listeners) {
+		public In notifyActor(ActorRef... listeners) {
 			this.listeners.addAll(Arrays.asList(listeners));
 			return this;
 		}
@@ -527,9 +532,9 @@ public abstract class GPIO<T extends GPIO<T>> {
 		 * @return a source that can be used in Akka Streams
 		 */
 		public Source<State, NotUsed> asSource(ActorSystem system, Materializer mat, int bufferSize,
-				OverflowStrategy overflowStrategy) {
+		        OverflowStrategy overflowStrategy) {
 			final Source<State, ActorRef> source = Source.actorRef(bufferSize, overflowStrategy)
-					.collectType(State.class);
+			        .collectType(State.class);
 			Pair<ActorRef, Source<State, NotUsed>> preMat = source.preMaterialize(mat);
 			system.actorOf(addListeners(preMat.first()).asProps());
 			return preMat.second();
@@ -541,7 +546,8 @@ public abstract class GPIO<T extends GPIO<T>> {
 		 * pins) or Integer (for PWM pins) message. It then sends a message containing
 		 * the new value of the pin (<code>GPIO.State</code>, Double or Integer).
 		 * 
-		 * @param system the ActorSystem in which to create the underlying Akka actor
+		 * @param system
+		 *            the ActorSystem in which to create the underlying Akka actor
 		 * @see State
 		 * @see Get
 		 * @return a source that can be used in Akka Streams
