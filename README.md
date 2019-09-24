@@ -85,9 +85,7 @@ In RIoT, a 'protocol class' encapsulates the specific protocol for a device, def
 On the caller side, this class need only be instantiated (possibly passing some additional settings specific to the device) and passed to the I2C object through the `device(...)` method. Typically, this class will also define constants containing the **default addresses** the device uses, and the **commands it will accept** from the caller:
 
 ```java
-BMA280 bma280config = new BMA280();
-
-Props props = I2C.device(bma280config)
+Props props = I2C.device(BMA280.class)
                  .onBus(1)
                  .at(BMA280Constants.DEFAULT_ADDRESS)
                  .asProps();
@@ -99,7 +97,86 @@ bma280.tell(BMA280.Command.SELFTEST, self());
 ```
 The Actor will respond to a Command object sent by the caller with a Response. The format of both Command and Response will typically be defined within the Protocol class.
 
-Similarly, Akka Streams components can be built using the `asFlow` method. The `Flow` component will accept the Commands messages defined in the protocol class, and emit a Response message in return:
+Similarly, Akka Streams components can be built using the `asFlow(...)` method. The `Flow` component will accept the Commands messages defined in the protocol class, and emit a Response message in return:
+
+```java
+Flow<BMA280.Command, BMA280.Results, NotUsed> bma280 = 
+     I2C.device(BMA280.class)
+        .onBus(1)
+		.at(BMA280Constants.DEFAULT_ADDRESS)
+		.asFlow(system);
+
+// Send a READ command every 500 millis...
+Source<BMA280.Command, ?> timerSource = Source
+        .tick(Duration.ZERO, Duration.ofSeconds(1), BMA280.Command.READ);
+
+// ...then print out the measurement to the console
+timerSource.via(bma280).to(logSink).run(mat);
+```
+
+### Implementing an I2C protocol
+
+Interacting with an I2C device is done through a series of read and write operations. In RIoT, this is encapsulated in a Protocol class, which describes how this interaction happens at startup, shutdown, or in response to messages:
+
+```java
+public interface I2CProtocol<I, O> extends Protocol<I, O> {
+
+	void init(I2CDevice dev) throws IOException;
+
+	O exec(I2CDevice dev, I message) throws IOException;
+
+	void shutdown(I2CDevice dev) throws IOException;
+
+}
+```
+
+The Protocol class should specify the type of message it will accept (the generic type `I` above), and the type it will send as a response (`O`). 
+
+Often, protocol classes will be able to execute more than just one operation. In this case, possible strategies are specifying a superclass as the type, or an enum:
+
+```java
+public class BMA280 implements I2CProtocol<BMA280.Command, BMA280.Results> {
+   ...
+   
+   // Use an enum for the commands
+	public static enum Command {
+		READ, CALIBRATE, SELFTEST
+	}
+
+   // Use a superclass for the results
+	public static class Results {
+	}
+	
+	// Some commands will return this subclass
+	public static class Measurement extends Results {
+		//...
+	}
+	
+	public void init(I2CDevice dev) throws IOException {
+		//...
+	}
+
+	public Results exec(I2CDevice dev, Command command) throws IOException {
+		switch (command) {
+		case SELFTEST:
+         //...
+         return new Results();
+		case CALIBRATE:
+         //... 
+         return new Results();
+       case READ:
+		default:
+		  /...
+		  return new Measurements(...);
+	}
+
+	@Override
+	public void shutdown(I2CDevice dev) throws IOException {
+		//...
+	}
+```
+
+Parameters that are used in configuring the I2C device can be passed to the constructor of the Protocol class, and kept in member variables, so that they are available when the `init()` method is called. Instead of constructing Streams components and Actors usiong a class name, they are then constructed using an instance of the protocol class: 
 
 ```java
 // Configure a BMA280 device 
@@ -110,21 +187,40 @@ BMA280 bma280config = new BMA280(
 		BMA280Constants.SleepDuration.sleep100ms);
 
 Flow<BMA280.Command, BMA280.Results, NotUsed> bma280 = 
-     I2C.device(bma280config)
+     I2C.device(bma280config) //instead of 'BMA280.class'
         .onBus(1)
 		.at(BMA280Constants.DEFAULT_ADDRESS)
 		.asFlow(system);
-
-// Send a READ command every 500 millis...
-Source<BMA280.Command, ?> timerSource = Source.tick(Duration.ZERO, Duration.ofSeconds(1), BMA280.Command.READ);
-
-// ...then print out the measurement to the console
-timerSource.via(bma280).to(logSink).run(mat);
 ```
 
-### Implementing an I2C protocol
+### The Protocol Descriptor
 
-**--CHECK BACK LATER--**
+In addition, each Protocol requires a ProtocolDescriptor object, returned by the `getDescriptor` method:
+
+```java
+public interface Protocol<I, O> {
+
+	ProtocolDescriptor<I, O> getDescriptor();
+
+}
+```
+
+This contains the class name of the input and output message, and the maximal time that can elapse between a command message is received, and a response is sent:
+
+```java
+
+@Override
+public ProtocolDescriptor<Command, Results> getDescriptor() {
+
+	return new ProtocolDescriptor<Command, Results>(
+	        Command.class, 
+	        Results.class, 
+	        Timeout.apply(1, TimeUnit.SECONDS));
+	
+}
+```
+
+This class can be expanded in future relase to contain more metadata about the protocol.
 
 
 [sbt]: https://www.scala-sbt.org/1.x/docs/Setup.html
