@@ -536,7 +536,7 @@ public abstract class GPIO<T extends GPIO<T>> {
 			final Source<State, ActorRef> source = Source.actorRef(bufferSize, overflowStrategy)
 			        .collectType(State.class);
 			Pair<ActorRef, Source<State, NotUsed>> preMat = source.preMaterialize(mat);
-			system.actorOf(addListeners(preMat.first()).asProps());
+			system.actorOf(notifyActor(preMat.first()).asProps());
 			return preMat.second();
 		}
 
