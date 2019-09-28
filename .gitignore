@@ -24,3 +24,6 @@ hs_err_pid*
 
 # MacOS
 Icon?
+*.sh
+pom.xml.releaseBackup
+release.properties
