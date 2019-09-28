@@ -3,7 +3,7 @@
 
 	<groupId>org.riot-framework</groupId>
 	<artifactId>riot-core</artifactId>
-	<version>0.2</version>
+	<version>0.3-SNAPSHOT</version>
 
 	<name>RIoT Framework Core</name>
 	<description>RIoT Core provides Akka actors that speed up development with the Raspberry Pi</description>
@@ -35,7 +35,7 @@
 	<scm>
 		<connection>scm:git:git@github.com:riot-framework/riot-core.git</connection>
 		<url>https://github.com/riot-framework/riotctl</url>
-	  <tag>riot-core-0.2</tag>
+	  <tag>HEAD</tag>
   </scm>
 
 	<dependencies>
