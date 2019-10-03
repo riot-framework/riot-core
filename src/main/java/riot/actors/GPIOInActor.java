@@ -131,7 +131,7 @@ public class GPIOInActor extends AbstractActor implements GpioPinListenerAnalog,
             final PinState pulseState = i % 2 == 0 ? PinState.HIGH : PinState.LOW;
             final long pulseLength = pulse.getPulses()[i];
             if (pulseLength>0)
-                inputMultipurpose.pulse(pulseLength, pulseState, true);
+                inputMultipurpose.pulse(pulseLength, pulseState, pulseLength > 1);
         }
         inputMultipurpose.setMode(PinMode.DIGITAL_INPUT);
     }
