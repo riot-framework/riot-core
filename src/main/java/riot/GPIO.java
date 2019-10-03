@@ -44,7 +44,7 @@ import riot.actors.GPIOOutActor;
  *
  * @param <T> the type of GPIO configuration, IN or OUT.
  */
-public abstract class GPIO<T extends GPIO<T, ?>, M> {
+public abstract class GPIO<T extends GPIO<T, M>, M> {
     private static final Timeout ASK_TIMEOUT = Timeout.apply(1, TimeUnit.SECONDS);
 
     /**
@@ -99,9 +99,9 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
 
     protected PinMode pinMode;
 
-    private PinPullResistance pullResistance = PinPullResistance.OFF;
+    protected PinPullResistance pullResistance = PinPullResistance.OFF;
 
-    private String name;
+    protected String name;
 
     protected boolean inout = false;
 
@@ -125,17 +125,14 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
      *
      * @return this GPIO Builder instance (for chaining).
      */
-    public abstract GPIO<T, Double> analog();
+    public abstract <TT extends T> TT analog();
 
     /**
      * The constructed GPIO pin will be digital.
      *
      * @return this GPIO Builder instance (for chaining).
      */
-    public abstract GPIO<T, State> digital();
-
-    // This is only used internally to make chaining work
-    protected abstract T getThis();
+    public abstract <TT extends T> TT digital();
 
     /**
      * @return this pin's mode as per the PI4J library's <code>PinMode</code> enum.
@@ -150,10 +147,7 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
      *
      * @return this GPIO Builder instance (for chaining).
      */
-    public T withPullupResistor() {
-        pullResistance = PinPullResistance.PULL_UP;
-        return getThis();
-    }
+    public abstract <TT extends T> TT withPullupResistor();
 
     /**
      * The constructed GPIO pin will have an internal pulldown resistor. This is useful for input pins, for example
@@ -161,10 +155,7 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
      *
      * @return this GPIO Builder instance (for chaining).
      */
-    public T withPulldownResistor() {
-        pullResistance = PinPullResistance.PULL_DOWN;
-        return getThis();
-    }
+    public abstract <TT extends T> TT withPulldownResistor();
 
     /**
      * @return this pin's pull resistance as per the PI4J library's
@@ -180,10 +171,7 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
      * @param name this pin's name
      * @return this GPIO Builder instance (for chaining).
      */
-    public T named(String name) {
-        this.name = name;
-        return getThis();
-    }
+    public abstract <TT extends T> TT named(String name);
 
     /**
      * @return whether this is bidirectional, i.e. whether it can be switched from Out to In.
@@ -224,7 +212,7 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
         return new Out(pin, State.class);
     }
 
-    public static class Out<M> extends GPIO<Out<?>, M> {
+    public static class Out<M> extends GPIO<Out<M>, M> {
 
         private PinState initialState = null;
 
@@ -369,10 +357,35 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
         }
 
         /**
-         * This is used to allow the superclass to do chaining properly
+         * The constructed GPIO pin will have an internal pullup resistor. This is useful for input pins, for example
+         * connected via a switch to ground.
+         *
+         * @return this GPIO Builder instance (for chaining).
          */
-        @Override
-        protected Out<M> getThis() {
+        public Out<M> withPullupResistor() {
+            super.pullResistance = PinPullResistance.PULL_UP;
+            return this;
+        }
+
+        /**
+         * The constructed GPIO pin will have an internal pulldown resistor. This is useful for input pins, for example
+         * connected via a switch to 3.3v.
+         *
+         * @return this GPIO Builder instance (for chaining).
+         */
+        public Out<M> withPulldownResistor() {
+            super.pullResistance = PinPullResistance.PULL_DOWN;
+            return this;
+        }
+
+        /**
+         * The constructed GPIO pin will be named as specified. This is only used in logging and debugging.
+         *
+         * @param name this pin's name
+         * @return this GPIO Builder instance (for chaining).
+         */
+        public Out<M> named(String name) {
+            this.name = name;
             return this;
         }
 
@@ -465,7 +478,7 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
         return new In(pin, State.class);
     }
 
-    public static class In<M> extends GPIO<In<?>, M> {
+    public static class In<M> extends GPIO<In<M>, M> {
 
         private Set<ActorRef> listeners = new HashSet<ActorRef>();
 
@@ -524,10 +537,35 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
         }
 
         /**
-         * This is used to allow the superclass to do chaining properly
+         * The constructed GPIO pin will have an internal pullup resistor. This is useful for input pins, for example
+         * connected via a switch to ground.
+         *
+         * @return this GPIO Builder instance (for chaining).
          */
-        @Override
-        protected In<M> getThis() {
+        public In<M> withPullupResistor() {
+            super.pullResistance = PinPullResistance.PULL_UP;
+            return this;
+        }
+
+        /**
+         * The constructed GPIO pin will have an internal pulldown resistor. This is useful for input pins, for example
+         * connected via a switch to 3.3v.
+         *
+         * @return this GPIO Builder instance (for chaining).
+         */
+        public In<M> withPulldownResistor() {
+            super.pullResistance = PinPullResistance.PULL_DOWN;
+            return this;
+        }
+
+        /**
+         * The constructed GPIO pin will be named as specified. This is only used in logging and debugging.
+         *
+         * @param name this pin's name
+         * @return this GPIO Builder instance (for chaining).
+         */
+        public In<M> named(String name) {
+            this.name = name;
             return this;
         }
 
