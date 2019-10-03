@@ -44,7 +44,7 @@ import riot.actors.GPIOOutActor;
  *
  * @param <T> the type of GPIO configuration, IN or OUT.
  */
-public abstract class GPIO<T extends GPIO<T>> {
+public abstract class GPIO<T extends GPIO<T, ?>, M> {
     private static final Timeout ASK_TIMEOUT = Timeout.apply(1, TimeUnit.SECONDS);
 
     /**
@@ -97,13 +97,15 @@ public abstract class GPIO<T extends GPIO<T>> {
      */
     private Pin pin;
 
-    private PinMode pinMode;
+    protected PinMode pinMode;
 
     private PinPullResistance pullResistance = PinPullResistance.OFF;
 
     private String name;
 
     protected boolean inout = false;
+
+    protected Class<M> messageType;
 
     /**
      * @return this pin's PI4J Pin object.
@@ -123,14 +125,14 @@ public abstract class GPIO<T extends GPIO<T>> {
      *
      * @return this GPIO Builder instance (for chaining).
      */
-    public abstract T analog();
+    public abstract GPIO<T, Double> analog();
 
     /**
      * The constructed GPIO pin will be digital.
      *
      * @return this GPIO Builder instance (for chaining).
      */
-    public abstract T digital();
+    public abstract GPIO<T, State> digital();
 
     // This is only used internally to make chaining work
     protected abstract T getThis();
@@ -208,7 +210,7 @@ public abstract class GPIO<T extends GPIO<T>> {
      *            numbering).
      * @return a GPIO Builder instance.
      */
-    public static Out out(int pin) {
+    public static Out<State> out(int pin) {
         return new Out(Utils.asPin(pin));
     }
 
@@ -218,11 +220,11 @@ public abstract class GPIO<T extends GPIO<T>> {
      * @param pin the PI4J pin object.
      * @return a GPIO Builder instance.
      */
-    public static Out out(Pin pin) {
+    public static Out<State> out(Pin pin) {
         return new Out(pin);
     }
 
-    public static class Out extends GPIO<Out> {
+    public static class Out<M> extends GPIO<Out<?>, M> {
 
         private PinState initialState = null;
 
@@ -242,9 +244,11 @@ public abstract class GPIO<T extends GPIO<T>> {
          * @return this GPIO Builder instance (for chaining).
          */
         @Override
-        public Out analog() {
-            super.pinMode = PinMode.ANALOG_OUTPUT;
-            return this;
+        public Out<Double> analog() {
+            Out<Double> nextState = ((Out<Double>) this);
+            nextState.pinMode = PinMode.ANALOG_OUTPUT;
+            nextState.messageType = Double.class;
+            return nextState;
         }
 
         /**
@@ -253,9 +257,11 @@ public abstract class GPIO<T extends GPIO<T>> {
          * @return this GPIO Builder instance (for chaining).
          */
         @Override
-        public Out digital() {
-            super.pinMode = PinMode.DIGITAL_OUTPUT;
-            return this;
+        public Out<State> digital() {
+            Out<State> nextState = ((Out<State>) this);
+            nextState.pinMode = PinMode.DIGITAL_OUTPUT;
+            nextState.messageType = State.class;
+            return nextState;
         }
 
         /**
@@ -263,9 +269,11 @@ public abstract class GPIO<T extends GPIO<T>> {
          *
          * @return this GPIO Builder instance (for chaining).
          */
-        public Out pwm() {
-            super.pinMode = PinMode.PWM_OUTPUT;
-            return this;
+        public Out<Integer> pwm() {
+            Out<Integer> nextState = ((Out<Integer>) this);
+            nextState.pinMode = PinMode.PWM_OUTPUT;
+            nextState.messageType = Integer.class;
+            return nextState;
         }
 
         /**
@@ -273,9 +281,11 @@ public abstract class GPIO<T extends GPIO<T>> {
          *
          * @return this GPIO Builder instance (for chaining).
          */
-        protected Out tone() {
-            super.pinMode = PinMode.PWM_TONE_OUTPUT;
-            return this;
+        protected Out<Integer> tone() {
+            Out<Integer> nextState = ((Out<Integer>) this);
+            nextState.pinMode = PinMode.PWM_TONE_OUTPUT;
+            nextState.messageType = Integer.class;
+            return nextState;
         }
 
         /**
@@ -284,7 +294,7 @@ public abstract class GPIO<T extends GPIO<T>> {
          *
          * @return this GPIO Builder instance (for chaining).
          */
-        public Out initiallyHigh() {
+        public Out<M> initiallyHigh() {
             initialState = PinState.HIGH;
             return this;
         }
@@ -295,7 +305,7 @@ public abstract class GPIO<T extends GPIO<T>> {
          *
          * @return this GPIO Builder instance (for chaining).
          */
-        public Out initiallyLow() {
+        public Out<M> initiallyLow() {
             initialState = PinState.LOW;
             return this;
         }
@@ -315,7 +325,7 @@ public abstract class GPIO<T extends GPIO<T>> {
          * @param value the value to use initially
          * @return this GPIO Builder instance (for chaining).
          */
-        public Out initiallyAt(double value) {
+        public Out<M> initiallyAt(double value) {
             initialValue = value;
             return this;
         }
@@ -333,7 +343,7 @@ public abstract class GPIO<T extends GPIO<T>> {
          *
          * @return this GPIO Builder instance (for chaining).
          */
-        public Out shuttingDownHigh() {
+        public Out<M> shuttingDownHigh() {
             shutdownState = PinState.HIGH;
             return this;
         }
@@ -344,7 +354,7 @@ public abstract class GPIO<T extends GPIO<T>> {
          *
          * @return this GPIO Builder instance (for chaining).
          */
-        public Out shuttingDownLow() {
+        public Out<M> shuttingDownLow() {
             shutdownState = PinState.LOW;
             return this;
         }
@@ -361,7 +371,7 @@ public abstract class GPIO<T extends GPIO<T>> {
          * This is used to allow the superclass to do chaining properly
          */
         @Override
-        protected Out getThis() {
+        protected Out<M> getThis() {
             return this;
         }
 
@@ -373,8 +383,8 @@ public abstract class GPIO<T extends GPIO<T>> {
          * @return a sink object that can be used in Akka Streams
          * @see State
          */
-        public Sink<State, NotUsed> asSink(ActorSystem system) {
-            return Flow.of(State.class).ask(system.actorOf(asProps()), State.class, Timeout.apply(1, TimeUnit.SECONDS))
+        public Sink<M, NotUsed> asSink(ActorSystem system) {
+            return Flow.of(messageType).ask(system.actorOf(asProps()), State.class, Timeout.apply(1, TimeUnit.SECONDS))
                     .to(Sink.ignore());
         }
 
@@ -387,9 +397,9 @@ public abstract class GPIO<T extends GPIO<T>> {
          * @return a flow object that can be used in Akka Streams
          * @see State
          */
-        public Flow<State, State, NotUsed> asFlow(ActorSystem system) {
+        public Flow<M, M, NotUsed> asFlow(ActorSystem system) {
             return Flow.fromGraph(GraphDSL.create(b -> {
-                return b.add(Flow.of(State.class).ask(system.actorOf(asProps()), State.class, ASK_TIMEOUT));
+                return b.add(Flow.of(messageType).ask(system.actorOf(asProps()), messageType, ASK_TIMEOUT));
             }));
         }
 
@@ -440,7 +450,7 @@ public abstract class GPIO<T extends GPIO<T>> {
      *            numbering).
      * @return a GPIO Builder instance.
      */
-    public static In in(int pin) {
+    public static In<State> in(int pin) {
         return new In(Utils.asPin(pin));
     }
 
@@ -450,11 +460,11 @@ public abstract class GPIO<T extends GPIO<T>> {
      * @param pin the PI4J pin object.
      * @return a GPIO Builder instance.
      */
-    public static In in(Pin pin) {
+    public static In<State> in(Pin pin) {
         return new In(pin);
     }
 
-    public static class In extends GPIO<In> {
+    public static class In<M> extends GPIO<In<?>, M> {
 
         private Set<ActorRef> listeners = new HashSet<ActorRef>();
 
@@ -470,9 +480,11 @@ public abstract class GPIO<T extends GPIO<T>> {
          * @return this GPIO Builder instance (for chaining).
          */
         @Override
-        public In analog() {
-            super.pinMode = PinMode.ANALOG_INPUT;
-            return this;
+        public In<Double> analog() {
+            In<Double> nextState = ((In<Double>) this);
+            nextState.pinMode = PinMode.ANALOG_INPUT;
+            nextState.messageType = Double.class;
+            return nextState;
         }
 
         /**
@@ -481,9 +493,11 @@ public abstract class GPIO<T extends GPIO<T>> {
          * @return this GPIO Builder instance (for chaining).
          */
         @Override
-        public In digital() {
-            super.pinMode = PinMode.DIGITAL_INPUT;
-            return this;
+        public In<State> digital() {
+            In<State> nextState = ((In<State>) this);
+            nextState.pinMode = PinMode.DIGITAL_INPUT;
+            nextState.messageType = State.class;
+            return nextState;
         }
 
         /**
@@ -494,7 +508,7 @@ public abstract class GPIO<T extends GPIO<T>> {
          * @param listeners the ActorRef of Actors to be notified
          * @return this GPIO Builder instance (for chaining).
          */
-        public In notifyActor(ActorRef... listeners) {
+        public In<M> notifyActor(ActorRef... listeners) {
             this.listeners.addAll(Arrays.asList(listeners));
             return this;
         }
@@ -511,7 +525,7 @@ public abstract class GPIO<T extends GPIO<T>> {
          * This is used to allow the superclass to do chaining properly
          */
         @Override
-        protected In getThis() {
+        protected In<M> getThis() {
             return this;
         }
 
@@ -524,7 +538,7 @@ public abstract class GPIO<T extends GPIO<T>> {
          * @param mat    the Materializer which will be used to materialize the stream
          * @return a source that can be used in Akka Streams
          */
-        public Source<State, NotUsed> asSource(ActorSystem system, Materializer mat) {
+        public Source<M, NotUsed> asSource(ActorSystem system, Materializer mat) {
             return asSource(system, mat, 1, OverflowStrategy.dropTail());
         }
 
@@ -539,11 +553,11 @@ public abstract class GPIO<T extends GPIO<T>> {
          * @return a source that can be used in Akka Streams
          * @see State
          */
-        public Source<State, NotUsed> asSource(ActorSystem system, Materializer mat, int bufferSize,
-                                               OverflowStrategy overflowStrategy) {
-            final Source<State, ActorRef> source = Source.actorRef(bufferSize, overflowStrategy)
-                    .collectType(State.class);
-            Pair<ActorRef, Source<State, NotUsed>> preMat = source.preMaterialize(mat);
+        public Source<M, NotUsed> asSource(ActorSystem system, Materializer mat, int bufferSize,
+                                           OverflowStrategy overflowStrategy) {
+            final Source<M, ActorRef> source = Source.actorRef(bufferSize, overflowStrategy)
+                    .collectType(messageType);
+            Pair<ActorRef, Source<M, NotUsed>> preMat = source.preMaterialize(mat);
             system.actorOf(notifyActor(preMat.first()).asProps());
             return preMat.second();
         }
@@ -558,8 +572,8 @@ public abstract class GPIO<T extends GPIO<T>> {
          * @see State
          * @see Get
          */
-        public Flow<State, State, NotUsed> asFlow(ActorSystem system) {
-            return Flow.of(State.class).ask(system.actorOf(asProps()), State.class, ASK_TIMEOUT);
+        public Flow<M, M, NotUsed> asFlow(ActorSystem system) {
+            return Flow.of(messageType).ask(system.actorOf(asProps()), messageType, ASK_TIMEOUT);
         }
 
         /**
