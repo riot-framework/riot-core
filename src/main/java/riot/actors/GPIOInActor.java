@@ -42,7 +42,6 @@ public class GPIOInActor extends AbstractActor implements GpioPinListenerAnalog,
 
         if (conf.isBidirectional()) {
             receive = receive
-                    .match(GPIO.State.class, this::onGPIOState)
                     .match(GPIO.Pulse.class, this::onGPIOPulse);
         }
 
@@ -108,22 +107,6 @@ public class GPIOInActor extends AbstractActor implements GpioPinListenerAnalog,
         }
     }
 
-    public void onGPIOState(GPIO.State state) {
-        inputMultipurpose.setMode(PinMode.DIGITAL_OUTPUT);
-        switch (state) {
-            case HIGH:
-                inputMultipurpose.high();
-                break;
-            case LOW:
-                inputMultipurpose.low();
-                break;
-            case TOGGLE:
-                inputMultipurpose.toggle();
-                break;
-        }
-        inputMultipurpose.setMode(PinMode.DIGITAL_INPUT);
-    }
-
     public void onGPIOPulse(GPIO.Pulse pulse) {
         inputMultipurpose.setMode(PinMode.DIGITAL_OUTPUT);
         for (int i = 0; i < pulse.getPulses().length; i++) {
@@ -131,7 +114,7 @@ public class GPIOInActor extends AbstractActor implements GpioPinListenerAnalog,
             final PinState pulseState = i % 2 == 0 ? PinState.HIGH : PinState.LOW;
             final long pulseLength = pulse.getPulses()[i];
             if (pulseLength>0)
-                inputMultipurpose.pulse(pulseLength, pulseState, pulseLength > 1);
+                inputMultipurpose.pulse(pulseLength, pulseState, true);
         }
         inputMultipurpose.setMode(PinMode.DIGITAL_INPUT);
     }

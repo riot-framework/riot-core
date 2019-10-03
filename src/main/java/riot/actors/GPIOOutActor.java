@@ -105,7 +105,12 @@ public class GPIOOutActor extends AbstractActor {
                 break;
             case TOGGLE:
                 outputDigital.toggle();
-                sender().tell(outputDigital.isHigh() ? GPIO.State.HIGH : GPIO.State.LOW, self());
+                if (outputDigital.isHigh()) {
+                    sender().tell(GPIO.State.HIGH, self());
+                }
+                if (outputDigital.isLow()) {
+                    sender().tell(GPIO.State.LOW, self());
+                }
                 break;
         }
     }
@@ -117,8 +122,8 @@ public class GPIOOutActor extends AbstractActor {
             final long pulseLength = pulse.getPulses()[i];
             if (pulseLength > 0) {
                 outputDigital.pulse(pulseLength, pulseState, pulseLength > 1);
-                sender().tell(outputDigital.isHigh() ? GPIO.State.HIGH : GPIO.State.LOW, self());
             }
+            sender().tell(pulse, self());
         }
     }
 

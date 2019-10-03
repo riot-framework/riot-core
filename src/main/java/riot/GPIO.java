@@ -105,7 +105,7 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
 
     protected boolean inout = false;
 
-    protected Class<M> messageType;
+    Class<M> messageType;
 
     /**
      * @return this pin's PI4J Pin object.
@@ -211,7 +211,7 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
      * @return a GPIO Builder instance.
      */
     public static Out<State> out(int pin) {
-        return new Out(Utils.asPin(pin));
+        return new Out(Utils.asPin(pin), State.class);
     }
 
     /**
@@ -221,7 +221,7 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
      * @return a GPIO Builder instance.
      */
     public static Out<State> out(Pin pin) {
-        return new Out(pin);
+        return new Out(pin, State.class);
     }
 
     public static class Out<M> extends GPIO<Out<?>, M> {
@@ -232,9 +232,10 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
 
         private Double initialValue = null;
 
-        private Out(Pin pin) {
+        private Out(Pin pin, Class<M> messageType) {
             super.pin = pin;
             super.pinMode = PinMode.DIGITAL_OUTPUT;
+            super.messageType = messageType;
             pin.getName();
         }
 
@@ -451,7 +452,7 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
      * @return a GPIO Builder instance.
      */
     public static In<State> in(int pin) {
-        return new In(Utils.asPin(pin));
+        return new In(Utils.asPin(pin), State.class);
     }
 
     /**
@@ -461,16 +462,17 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
      * @return a GPIO Builder instance.
      */
     public static In<State> in(Pin pin) {
-        return new In(pin);
+        return new In(pin, State.class);
     }
 
     public static class In<M> extends GPIO<In<?>, M> {
 
         private Set<ActorRef> listeners = new HashSet<ActorRef>();
 
-        private In(Pin pin) {
+        private In(Pin pin, Class<M> messageType) {
             super.pin = pin;
             super.pinMode = PinMode.DIGITAL_INPUT;
+            super.messageType = messageType;
             pin.getName();
         }
 
@@ -616,7 +618,7 @@ public abstract class GPIO<T extends GPIO<T, ?>, M> {
     public static class InOut extends In {
 
         private InOut(Pin pin) {
-            super(pin);
+            super(pin, State.class);
             super.inout = true;
         }
     }
