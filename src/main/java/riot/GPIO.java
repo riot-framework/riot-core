@@ -190,6 +190,9 @@ public abstract class GPIO<T extends GPIO<T, M>, M> {
         return name;
     }
 
+    protected String getActorName() {
+        return name.replaceAll("[^a-zA-Z0-9-]", "-");
+    }
     /*
      * Output Pin
      */
@@ -414,7 +417,7 @@ public abstract class GPIO<T extends GPIO<T, M>, M> {
          * @see State
          */
         public Sink<M, NotUsed> asSink(ActorSystem system) {
-            return Flow.of(messageType).ask(system.actorOf(asProps(), name), messageType, Timeout.apply(1, TimeUnit.SECONDS))
+            return Flow.of(messageType).ask(system.actorOf(asProps(), getActorName()), messageType, Timeout.apply(1, TimeUnit.SECONDS))
                     .to(Sink.ignore());
         }
 
@@ -429,7 +432,7 @@ public abstract class GPIO<T extends GPIO<T, M>, M> {
          */
         public Flow<M, M, NotUsed> asFlow(ActorSystem system) {
             return Flow.fromGraph(GraphDSL.create(b -> {
-                return b.add(Flow.of(messageType).ask(system.actorOf(asProps(), name), messageType, ASK_TIMEOUT));
+                return b.add(Flow.of(messageType).ask(system.actorOf(asProps(), getActorName()), messageType, ASK_TIMEOUT));
             }));
         }
 
@@ -450,10 +453,10 @@ public abstract class GPIO<T extends GPIO<T, M>, M> {
         public void fixedAt(ActorSystem system, GPIO.State state) {
             switch (state) {
                 case HIGH:
-                    system.actorOf(digital().initiallyHigh().asProps(), name);
+                    system.actorOf(digital().initiallyHigh().asProps(), getActorName());
                     break;
                 default:
-                    system.actorOf(digital().initiallyLow().asProps(), name);
+                    system.actorOf(digital().initiallyLow().asProps(), getActorName());
                     break;
             }
         }
@@ -614,7 +617,7 @@ public abstract class GPIO<T extends GPIO<T, M>, M> {
             final Source<M, ActorRef> source = Source.actorRef(bufferSize, overflowStrategy)
                     .collectType(messageType);
             Pair<ActorRef, Source<M, NotUsed>> preMat = source.preMaterialize(mat);
-            system.actorOf(notifyActor(preMat.first()).asProps(), name);
+            system.actorOf(notifyActor(preMat.first()).asProps(), getActorName());
             return preMat.second();
         }
 
@@ -641,7 +644,7 @@ public abstract class GPIO<T extends GPIO<T, M>, M> {
          * @see Get
          */
         public Flow<Get, M, NotUsed> asFlow(ActorSystem system) {
-            return Flow.of(Get.class).ask(system.actorOf(asProps(), name), messageType, ASK_TIMEOUT);
+            return Flow.of(Get.class).ask(system.actorOf(asProps(), getActorName()), messageType, ASK_TIMEOUT);
         }
 
         /**
