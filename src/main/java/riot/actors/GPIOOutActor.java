@@ -105,20 +105,21 @@ public class GPIOOutActor extends AbstractActor {
                 break;
             case TOGGLE:
                 outputDigital.toggle();
-                if (outputDigital.isHigh()) {
-                    sender().tell(GPIO.State.HIGH, self());
-                }
-                if (outputDigital.isLow()) {
-                    sender().tell(GPIO.State.LOW, self());
-                }
+                sender().tell(outputDigital.isHigh() ? GPIO.State.HIGH : GPIO.State.LOW, self());
                 break;
         }
     }
 
     public void onGPIOPulse(GPIO.Pulse pulse) {
-		final PinState pulseState = pulse.getState() == GPIO.State.HIGH ? PinState.HIGH : PinState.LOW;
-		outputDigital.pulse(pulse.getLength(), pulseState);
-        sender().tell(pulse, self());
+        for (int i = 0; i < pulse.getPulses().length; i++) {
+            //Even pulses, starting with 0, are high, odds are low
+            final PinState pulseState = i % 2 == 0 ? PinState.HIGH : PinState.LOW;
+            final long pulseLength = pulse.getPulses()[i];
+            if (pulseLength > 0) {
+                outputDigital.pulse(pulseLength, pulseState, true);
+                sender().tell(outputDigital.isHigh() ? GPIO.State.HIGH : GPIO.State.LOW, self());
+            }
+        }
     }
 
     public void onValue(Double value) {

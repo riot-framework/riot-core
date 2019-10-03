@@ -56,31 +56,29 @@ public abstract class GPIO<T extends GPIO<T>> {
     }
 
     /**
-     * Models a GPIO Pulse: The port being High for a predefined length of time, then low
+     * Models a GPIO Pulse, or a sequence of pulses
      */
     public static final class Pulse {
-        private final long length;
-        private final State state;
+        private final long[] pulses;
 
         static Pulse high(long length) {
-            return new Pulse(length, State.HIGH);
+            return new Pulse(length);
         }
 
         static Pulse low(long length) {
-            return new Pulse(length, State.LOW);
+            //'high' pulse is first, but has length zero.
+            return new Pulse(0, length);
         }
 
-        private Pulse(long length, State state) {
-            this.length = length;
-            this.state = state;
+        private Pulse(long... pulses) {
+            this.pulses = pulses;
         }
 
-        public long getLength() {
-            return length;
-        }
-
-        public State getState() {
-            return state;
+        /**
+         * @return a sequence of pulse timings: high, then low, then high, etc...
+         */
+        public long[] getPulses() {
+            return pulses;
         }
     }
 

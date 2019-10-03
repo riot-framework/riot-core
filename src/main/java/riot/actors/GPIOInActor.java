@@ -14,6 +14,7 @@ import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import com.sun.codemodel.internal.JForEach;
 import riot.GPIO;
 import riot.GPIO.State;
 
@@ -126,8 +127,13 @@ public class GPIOInActor extends AbstractActor implements GpioPinListenerAnalog,
 
     public void onGPIOPulse(GPIO.Pulse pulse) {
         inputMultipurpose.setMode(PinMode.DIGITAL_OUTPUT);
-        final PinState pulseState = pulse.getState() == GPIO.State.HIGH ? PinState.HIGH : PinState.LOW;
-        inputMultipurpose.pulse(pulse.getLength(), pulseState);
+        for (int i = 0; i < pulse.getPulses().length; i++) {
+            //Even pulses, starting with 0, are high, odds are low
+            final PinState pulseState = i % 2 == 0 ? PinState.HIGH : PinState.LOW;
+            final long pulseLength = pulse.getPulses()[i];
+            if (pulseLength>0)
+                inputMultipurpose.pulse(pulseLength, pulseState);
+        }
         inputMultipurpose.setMode(PinMode.DIGITAL_INPUT);
     }
 
