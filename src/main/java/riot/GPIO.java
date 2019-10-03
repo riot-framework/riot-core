@@ -257,6 +257,19 @@ public abstract class GPIO<T extends GPIO<T, M>, M> {
         }
 
         /**
+         * The constructed GPIO output pin will be digital, but send out pulses.
+         *
+         * @return this GPIO Builder instance (for chaining).
+         */
+        public Out<Pulse> pulsed() {
+            Out<Pulse> nextState = ((Out<Pulse>) this);
+            nextState.pinMode = PinMode.DIGITAL_OUTPUT;
+            nextState.messageType = Pulse.class;
+            return nextState;
+        }
+
+
+        /**
          * The constructed GPIO pin will be a PWM output pin.
          *
          * @return this GPIO Builder instance (for chaining).
