@@ -61,16 +61,16 @@ public abstract class GPIO<T extends GPIO<T>> {
     public static final class Pulse {
         private final long[] pulses;
 
-        static Pulse high(long length) {
+        public static Pulse high(long length) {
             return new Pulse(length);
         }
 
-        static Pulse low(long length) {
+        public static Pulse low(long length) {
             //'high' pulse is first, but has length zero.
             return new Pulse(0, length);
         }
 
-        static Pulse sequence(long... length) {
+        public static Pulse sequence(long... length) {
             return new Pulse(length);
         }
 
