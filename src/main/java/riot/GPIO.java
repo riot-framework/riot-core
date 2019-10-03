@@ -70,6 +70,10 @@ public abstract class GPIO<T extends GPIO<T>> {
             return new Pulse(0, length);
         }
 
+        static Pulse sequence(long... length) {
+            return new Pulse(length);
+        }
+
         private Pulse(long... pulses) {
             this.pulses = pulses;
         }
