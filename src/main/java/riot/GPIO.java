@@ -1,10 +1,12 @@
 package riot;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import akka.actor.Cancellable;
 import com.pi4j.io.gpio.Pin;
 import com.pi4j.io.gpio.PinMode;
 import com.pi4j.io.gpio.PinPullResistance;
@@ -89,7 +91,8 @@ public abstract class GPIO<T extends GPIO<T, M>, M> {
     /**
      * "Get" command for input GPIO
      */
-    public static class Get {
+    public enum Get {
+        INST
     }
 
     /*
@@ -603,17 +606,29 @@ public abstract class GPIO<T extends GPIO<T, M>, M> {
         }
 
         /**
-         * Creates an Akka Streams element that sets the pin's value every time it receives a <code>GPIO.State</code>
-         * (for digital pins), Double (for analog pins) or Integer (for PWM pins) message. It then sends a message
-         * containing the new value of the pin (<code>GPIO.State</code>, Double or Integer).
+         * Creates an Akka Streams source that emits a <code>GPIO.State</code> (for digital pins), a Double (for analog
+         * pins) or an Integer (for PWM pins) message at fixed intervals.
+         *
+         * @param system the ActorSystem in which to create the underlying Akka actor
+         * @param d    the interval at which the value of the pins is measured and emitted.
+         * @return a source that can be used in Akka Streams
+         */
+        public Source<M, Cancellable> asSource(ActorSystem system, Duration d) {
+            Source<Get, Cancellable> timerSource = Source.tick(d, d, Get.INST);
+            return timerSource.via(asFlow(system));
+        }
+
+        /**
+         * Creates an Akka Streams element that sets the pin's value every time it receives a <code>Get</code> message.
+         * It then sends a message containing the new value of the pin (<code>GPIO.State</code>, Double or Integer).
          *
          * @param system the ActorSystem in which to create the underlying Akka actor
          * @return a source that can be used in Akka Streams
          * @see State
          * @see Get
          */
-        public Flow<M, M, NotUsed> asFlow(ActorSystem system) {
-            return Flow.of(messageType).ask(system.actorOf(asProps()), messageType, ASK_TIMEOUT);
+        public Flow<Get, M, NotUsed> asFlow(ActorSystem system) {
+            return Flow.of(Get.class).ask(system.actorOf(asProps()), messageType, ASK_TIMEOUT);
         }
 
         /**
