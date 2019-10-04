@@ -14,38 +14,38 @@ import riot.I2C;
 import riot.protocols.I2CProtocol;
 
 public class I2CActor<P extends I2CProtocol<I, O>, I, O> extends AbstractActor {
-	final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
+    final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
-	private I2CDevice dev;
-	private I2CProtocol<I, O> proto;
+    private I2CDevice dev;
+    private I2CProtocol<I, O> proto;
 
-	private final I2C<P, I, O> conf;
+    private final I2C<P, I, O> conf;
 
-	protected I2CActor(I2C<P, I, O> conf) {
-		this.conf = conf;
-	}
+    protected I2CActor(I2C<P, I, O> conf) {
+        this.conf = conf;
+    }
 
-	@Override
-	public Receive createReceive() {
-		return super.receiveBuilder() //
-				.match(conf.getProtocolDescriptor().getInputMessageType(), this::onMessage).build();
-	}
+    @Override
+    public Receive createReceive() {
+        return super.receiveBuilder() //
+                .match(conf.getProtocolDescriptor().getInputMessageType(), this::onMessage).build();
+    }
 
-	@Override
-	public void preStart() throws UnsupportedBusNumberException, IOException {
-		final I2CBus bus = I2CFactory.getInstance(conf.getBusNumber());
-		dev = bus.getDevice(conf.getAddress());
-		proto = conf.getProtocol();
-		proto.init(dev);
-	}
+    @Override
+    public void preStart() throws UnsupportedBusNumberException, IOException {
+        final I2CBus bus = I2CFactory.getInstance(conf.getBusNumber());
+        dev = bus.getDevice(conf.getAddress());
+        proto = conf.getProtocol();
+        proto.init(dev);
+    }
 
-	@Override
-	public void postStop() throws IOException {
-		proto.shutdown(dev);
-	}
+    @Override
+    public void postStop() throws IOException {
+        proto.shutdown(dev);
+    }
 
-	public void onMessage(I message) throws IOException {
-		sender().tell(proto.exec(dev, message), self());
-	}
+    public void onMessage(I message) throws IOException {
+        sender().tell(proto.exec(dev, message), self());
+    }
 
 }
