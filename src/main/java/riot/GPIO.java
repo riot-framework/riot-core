@@ -417,8 +417,7 @@ public abstract class GPIO<T extends GPIO<T, M>, M> {
          * @see State
          */
         public Sink<M, NotUsed> asSink(ActorSystem system) {
-            return Flow.of(messageType).ask(system.actorOf(asProps(), getActorName()), messageType, Timeout.apply(1, TimeUnit.SECONDS))
-                    .to(Sink.ignore());
+            return Sink.actorRef(system.actorOf(asProps(), getActorName()), NotUsed.getInstance());
         }
 
         /**
@@ -626,7 +625,7 @@ public abstract class GPIO<T extends GPIO<T, M>, M> {
          * pins) or an Integer (for PWM pins) message at fixed intervals.
          *
          * @param system the ActorSystem in which to create the underlying Akka actor
-         * @param d    the interval at which the value of the pins is measured and emitted.
+         * @param d      the interval at which the value of the pins is measured and emitted.
          * @return a source that can be used in Akka Streams
          */
         public Source<M, Cancellable> asSource(ActorSystem system, Duration d) {
