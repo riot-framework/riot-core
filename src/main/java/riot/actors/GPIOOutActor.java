@@ -121,10 +121,10 @@ public class GPIOOutActor extends AbstractActor {
             final PinState pulseState = i % 2 == 0 ? PinState.HIGH : PinState.LOW;
             final long pulseLength = pulse.getPulses()[i];
             if (pulseLength > 0) {
-                outputDigital.pulse(pulseLength, pulseState, pulseLength > 1);
+                outputDigital.pulse(pulseLength, pulseState, pulse.getPulses().length > 1);
             }
-            sender().tell(pulse, self());
         }
+        sender().tell(pulse, self());
     }
 
     public void onValue(Double value) {
