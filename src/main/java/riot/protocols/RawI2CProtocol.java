@@ -16,8 +16,6 @@ public class RawI2CProtocol implements I2CProtocol<Command, Result> {
             READ, WRITE
         }
 
-        ;
-
         private final CommandType type;
         private final int address;
         private final int length;
