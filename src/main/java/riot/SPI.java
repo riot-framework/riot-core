@@ -70,22 +70,22 @@ public class SPI<P extends SPIProtocol<I, O>, I, O> {
         return channel;
     }
 
-    public SPI<P, I, O> mode0() {
+    public SPI<P, I, O> withMode0() {
         this.mode = SpiMode.MODE_0;
         return this;
     }
 
-    public SPI<P, I, O> mode1() {
+    public SPI<P, I, O> withmode1() {
         this.mode = SpiMode.MODE_1;
         return this;
     }
 
-    public SPI<P, I, O> mode2() {
+    public SPI<P, I, O> withmode2() {
         this.mode = SpiMode.MODE_2;
         return this;
     }
 
-    public SPI<P, I, O> mode3() {
+    public SPI<P, I, O> withmode3() {
         this.mode = SpiMode.MODE_3;
         return this;
     }
@@ -100,7 +100,7 @@ public class SPI<P extends SPIProtocol<I, O>, I, O> {
      * @param speed a bus speed value between 500 and 32000, in kHz
      * @return this configuration object for chaining.
      */
-    public SPI<P, I, O> atSpeed(int speed) {
+    public SPI<P, I, O> withSpeed(int speed) {
         if (speed < 500) speed = 500;
         if (speed > 32000) speed = 32000;
         this.speed = speed * 1000;
